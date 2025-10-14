@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Validate Docker Compose
+      run: |
+        # Verifica se docker-compose.yml é válido
+        docker-compose config
+        
+    - name: Check Makefile syntax
+      run: |
+        # Verifica sintaxe do Makefile
+        make --dry-run
+        
+    - name: Validate scripts
+      run: |
+        # Verifica sintaxe dos scripts bash
+        bash -n scripts/backup.sh
+        bash -n scripts/restore.sh
+        echo "✅ Scripts syntax OK"
+        
+    - name: Check file permissions
+      run: |
+        # Verifica se scripts são executáveis
+        ls -la scripts/
+        
+  test-setup:
+    runs-on: ubuntu-latest
+    needs: validate
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Create .env from example
+      run: |
+        cp .env.example .env
+        # Substitui valores sensíveis com valores de teste
+        sed -i 's/change-me-32+chars/test-key-32-chars-minimum-length-here/g' .env
+        sed -i 's/change-me-strong/test-password-123/g' .env
+        
+    - name: Start services
+      run: |
+        make up
+        
+    - name: Wait for services
+      run: |
+        sleep 30
+        docker-compose ps
+        
+    - name: Check service health
+      run: |
+        # Verifica se PostgreSQL está saudável
+        docker-compose exec -T postgres pg_isready -U n8n -d n8n
+        
+        # Verifica se n8n está rodando
+        docker-compose ps | grep n8n | grep "Up"
+        
+    - name: Test backup script
+      run: |
+        make backup
+        ls -la backups/
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        make down
+        docker system prune -f
