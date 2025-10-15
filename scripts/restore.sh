@@ -27,9 +27,9 @@ if [ ! -f "$FILE" ]; then
 fi
 
 # Check if PostgreSQL container is running
-if ! docker compose ps postgres | grep -q "Up"; then
+if ! docker compose ps postgres 2>/dev/null | grep -q "Up"; then
     echo "❌ PostgreSQL container is not running!"
-    echo "Start services first with: make up (Linux/macOS) or .\up.ps1 (Windows)"
+    echo "Start services first with: docker compose up -d"
     exit 1
 fi
 

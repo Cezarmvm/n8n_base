@@ -14,15 +14,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
     - name: Validate Docker Compose
       run: |
         # Verifica se docker-compose.yml é válido
-        docker-compose config
+        docker compose config
         
     - name: Check Makefile syntax
       run: |
-        # Verifica sintaxe do Makefile
-        make --dry-run
+        # Verifica sintaxe do Makefile (se make estiver disponível)
+        if command -v make >/dev/null 2>&1; then
+          make --dry-run
+        else
+          echo "⚠️ Make not available, skipping Makefile validation"
+        fi
         
     - name: Validate scripts
       run: |
@@ -33,8 +40,10 @@ jobs:
         
     - name: Check file permissions
       run: |
-        # Verifica se scripts são executáveis
+        # Verifica se scripts existem
         ls -la scripts/
+        # Torna scripts executáveis
+        chmod +x scripts/backup.sh scripts/restore.sh
         
   test-setup:
     runs-on: ubuntu-latest
@@ -53,28 +62,32 @@ jobs:
         
     - name: Start services
       run: |
-        make up
+        # Usa docker compose diretamente (mais compatível)
+        docker compose up -d
         
     - name: Wait for services
       run: |
         sleep 30
-        docker-compose ps
+        docker compose ps
         
     - name: Check service health
       run: |
         # Verifica se PostgreSQL está saudável
-        docker-compose exec -T postgres pg_isready -U n8n -d n8n
+        docker compose exec -T postgres pg_isready -U n8n -d n8n
         
         # Verifica se n8n está rodando
-        docker-compose ps | grep n8n | grep "Up"
+        docker compose ps | grep n8n | grep "Up"
         
     - name: Test backup script
       run: |
-        make backup
+        # Executa backup diretamente
+        bash scripts/backup.sh
         ls -la backups/
         
     - name: Cleanup
       if: always()
       run: |
-        make down
-        docker system prune -f
+        # Para serviços
+        docker compose down
+        # Limpa volumes de teste
+        docker volume prune -f
