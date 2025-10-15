@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Este guia ajuda a resolver problemas comuns ao usar o n8n-bootstrap.
+Este guia ajuda a resolver problemas comuns ao usar o n8n-bootstrap no Windows, Linux e macOS.
 
 ## Problemas de Inicialização
 
@@ -11,6 +11,23 @@ Este guia ajuda a resolver problemas comuns ao usar o n8n-bootstrap.
 - Logs mostram "database is not ready"
 
 **Soluções:**
+
+**Windows:**
+```powershell
+# Verificar logs
+.\logs.ps1
+
+# Verificar volumes
+docker volume ls
+docker volume inspect n8n-base_pgdata
+
+# Limpar volumes (CUIDADO: perde dados)
+.\down.ps1
+docker volume rm n8n-base_pgdata
+.\up.ps1
+```
+
+**Linux/macOS:**
 ```bash
 # Verificar logs
 make logs
