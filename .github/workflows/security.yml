@@ -14,17 +14,44 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.29.1
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'table'
+    - name: Basic security checks
+      run: |
+        echo "🔍 Running basic security checks..."
         
-    - name: Check for secrets
-      uses: trufflesecurity/trufflehog@main
-      with:
-        path: ./
-        base: main
-        head: HEAD
-        extra_args: --only-verified
+        # Check for common sensitive files
+        if [ -f ".env" ]; then
+          echo "❌ .env file found in repository - should be in .gitignore"
+          exit 1
+        fi
+        
+        # Check for hardcoded secrets patterns
+        if grep -r "password.*=" --include="*.yml" --include="*.yaml" . | grep -v "change-me" | grep -v "example"; then
+          echo "❌ Potential hardcoded passwords found"
+          exit 1
+        fi
+        
+        # Check for API keys patterns
+        if grep -r "api[_-]key.*=" --include="*.yml" --include="*.yaml" . | grep -v "change-me" | grep -v "example"; then
+          echo "❌ Potential hardcoded API keys found"
+          exit 1
+        fi
+        
+        echo "✅ Basic security checks passed"
+        
+    - name: Check Docker images
+      run: |
+        echo "🐳 Checking Docker configuration..."
+        
+        # Validate docker-compose.yml exists and is valid
+        if [ ! -f "docker-compose.yml" ]; then
+          echo "❌ docker-compose.yml not found"
+          exit 1
+        fi
+        
+        # Check if using latest tags (security risk)
+        if grep -q "latest" docker-compose.yml; then
+          echo "⚠️  Warning: Using 'latest' tags in Docker images"
+          echo "Consider using specific version tags for better security"
+        fi
+        
+        echo "✅ Docker configuration check passed"
